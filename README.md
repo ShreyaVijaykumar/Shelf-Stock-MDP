@@ -126,12 +126,3 @@ Prices, costs and demand probabilities are illustrative assumptions, not measure
 - The model is deliberately small (4 states) so the Bellman equations can be solved exactly. Real shops would need more state (supplier delay, perishability, day of week).
 - Figures 1 and 2 are Monte Carlo estimates and vary slightly with the seed. Figure 3, Panel A and Panel B of Figure 4, and all v\* values are exact. Panel C is simulated.
 
-## Future RL work (not implemented)
-
-Hide the demand distribution and learn q(s,a) from interaction with tabular Q-learning, then check that the learned Q-values and greedy policy match the exact v\* and q\* shown in Figure 4, Panel B.
-
-## References
-
-- Sutton, R. S. and Barto, A. G. (2018). *Reinforcement Learning: An Introduction*, 2nd ed., MIT Press. Ch. 3 (finite MDPs, Bellman equations), Ch. 4 (dynamic programming).
-- Puterman, M. L. (1994). *Markov Decision Processes*, Wiley.
-- Gijsbrechts, J., Boute, R. N., Van Mieghem, J. A. and Zhang, D. J. (2022). Can deep reinforcement learning improve inventory management? *Manufacturing & Service Operations Management*, 24(3), 1349-1368. DOI 10.1287/msom.2021.1064.
