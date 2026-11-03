@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shelf-Stock MDP prototype</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f3f5f2;--sf:#fff;--ink:#17302b;--mut:#5b6b66;--ln:#cfd8d3;--ac:#0f6b5c;--wo:#c77a00;--bad:#b3392f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101a18;--sf:#182522;--ink:#e3ece8;--mut:#93a6a0;--ln:#2d413c;--ac:#4fc3ad;--wo:#f0a63a;--bad:#ef7d72}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:920px;margin:0 auto;padding:20px 14px 48px}
+h1,h2{font-family:"Iowan Old Style",Georgia,serif;line-height:1.2}h1{font-size:1.7rem;margin:.1em 0 .5em}h2{font-size:1.1rem;margin:1.5em 0 .4em;border-bottom:2px solid var(--ln);padding-bottom:.2em}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:6px;padding:10px 12px;margin:8px 0;overflow-x:auto}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.g div{border-left:4px solid var(--ac);padding:2px 8px;background:var(--sf)}.g b{display:block;font-size:.8rem;color:var(--mut);font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}
+select,button{font:inherit;padding:5px 10px;border:1px solid var(--ac);background:var(--sf);color:var(--ink);border-radius:4px;cursor:pointer}
+button.p{background:var(--ac);color:var(--bg)}
+button:focus-visible,select:focus-visible{outline:3px solid var(--wo);outline-offset:2px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}th,td{border:1px solid var(--ln);padding:4px 8px;text-align:left}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+svg{max-width:100%;height:auto}svg text{fill:var(--ink);font:12px system-ui,sans-serif}
+.win{color:var(--ac);font-weight:700}.neg{color:var(--bad)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media (max-width:620px){.cols{grid-template-columns:1fr}}
+.pn{background:var(--sf);border:1px solid var(--ln);border-top:5px solid var(--c);border-radius:6px;padding:8px 12px}
+.pn h3{margin:0;font-size:1rem;color:var(--c)}.big{font-size:1.4rem;font-weight:700;color:var(--c)}
+.shelf{display:flex;gap:6px;margin:6px 0}.slot{width:34px;height:34px;border:2px dashed var(--ln);border-radius:5px;display:grid;place-items:center}
+.slot.on{border:2px solid var(--c);background:color-mix(in srgb,var(--c) 18%,var(--sf))}
+.ev{font-size:.85rem;color:var(--mut);min-height:2.6em}
+</style></head><body><main>
+<h1>Shelf-Stock MDP</h1>
+
+<h2>Design</h2>
+<div class="g">
+<div><b>Agent</b>Restocking controller</div>
+<div><b>Environment</b>Shelf, supplier, customers</div>
+<div><b>State</b>Stock s ∈ {0,1,2,3}</div>
+<div><b>Action</b>Order a ∈ {0 … 3−s}</div>
+<div><b>Reward</b>+5 sold, −2 ordered, −0.5 held, −1 lost sale</div>
+<div><b>Dynamics</b>Demand 0/1/2 with p = 0.2/0.5/0.3; s′ = s+a−sold</div>
+<div><b>Episode</b>7 days, start s = 1</div>
+<div><b>Return</b>G = Σ γᵗ Rₜ₊₁, γ = 0.9</div>
+<div><b>Policy</b>π(s) = order quantity</div>
+<div><b>Value</b>v_π(s) = E[G | s, π]</div>
+</div>
+
+<h2>Transitions</h2>
+<div class="row"><label>s <select id="ts"></select></label><label>a <select id="ta"></select></label></div>
+<div class="card"><svg id="dg" viewBox="0 0 640 190" role="img" aria-label="Transition diagram"></svg></div>
+<div class="card" id="tt"></div>
+
+<h2>Bellman equation</h2>
+<div class="card" style="font-style:italic;font-family:Georgia,serif">v*(s) = max<sub>a</sub> Σ<sub>d</sub> P(d) [ r + γ v*(s′) ]</div>
+<div class="row"><label>s <select id="bs"></select></label></div>
+<div class="card" id="bb"></div>
+<div class="card" id="vt"></div>
+
+<h2>Policy in action: without MDP vs with MDP</h2>
+<div class="row"><label>Without-MDP rule <select id="bl"></select></label>
+<button class="p" id="st">Next day</button><button id="wk">Run week</button><button id="nw">New week</button><button id="mc">2000 weeks</button></div>
+<div class="cols">
+<div class="pn" style="--c:var(--wo)"><h3>Without MDP</h3><div class="shelf" id="sh0"></div><div class="ev" id="ev0"></div>Profit <span class="big" id="p0">0.0</span></div>
+<div class="pn" style="--c:var(--ac)"><h3>With MDP</h3><div class="shelf" id="sh1"></div><div class="ev" id="ev1"></div>Profit <span class="big" id="p1">0.0</span></div>
+</div>
+<div class="card"><svg id="ch" viewBox="0 0 640 220" role="img" aria-label="Cumulative profit by day"></svg></div>
+<div class="card" id="mt">Press “2000 weeks”.</div>
+
+<script>
+(function(){
+var GM=0.9,CAP=3,PD=[0.2,0.5,0.3],DAYS=7;
+function $(i){return document.getElementById(i)}
+function acts(s){var r=[];for(var a=0;a<=CAP-s;a++)r.push(a);return r}
+function outs(s,a){var s1=s+a;return PD.map(function(p,d){var sold=Math.min(d,s1),nx=s1-sold;return{p:p,d:d,sold:sold,nx:nx,r:5*sold-2*a-0.5*nx-(d-sold)}})}
+function Q(s,a,V){return outs(s,a).reduce(function(t,o){return t+o.p*(o.r+GM*V[o.nx])},0)}
+function imm(s,a){return outs(s,a).reduce(function(t,o){return t+o.p*o.r},0)}
+function best(s,fn){var b=-1e9,ba=0;acts(s).forEach(function(a){var v=fn(a);if(v>b+1e-9){b=v;ba=a}});return ba}
+function f(x,k){return x.toFixed(k===undefined?2:k)}
+var S4=[0,1,2,3],V=[0,0,0,0];
+for(var i=0;i<600;i++){V=S4.map(function(s){return Math.max.apply(null,acts(s).map(function(a){return Q(s,a,V)}))})}
+var MDP=function(s){return best(s,function(a){return Q(s,a,V)})};
+var RULES={
+ myopic:{n:"Myopic (best reward today)",f:function(s){return best(s,function(a){return imm(s,a)})}},
+ empty:{n:"Order 1 only when empty",f:function(s){return s===0?1:0}},
+ random:{n:"Random order",f:function(s){var A=acts(s);return A[Math.floor(Math.random()*A.length)]}},
+ tuned:{n:"Order up to 2 (hand-tuned)",f:function(s){return Math.max(0,2-s)}}
+};
+function evalPol(fn){var W=[0,0,0,0];for(var i=0;i<600;i++){W=S4.map(function(s){return Q(s,fn(s),W)})}return W}
+var VP={mdp:evalPol(MDP),myopic:evalPol(RULES.myopic.f),empty:evalPol(RULES.empty.f),tuned:evalPol(RULES.tuned.f)};
+function opt(el,arr,fn){$(el).innerHTML=arr.map(fn).join("")}
+opt("ts",S4,function(s){return'<option>'+s+'</option>'});opt("bs",S4,function(s){return'<option>'+s+'</option>'});
+opt("bl",Object.keys(RULES),function(k){return'<option value="'+k+'">'+RULES[k].n+'</option>'});
+function fillA(){opt("ta",acts(+$("ts").value),function(a){return'<option>'+a+'</option>'})}
+function diagram(){
+ var s=+$("ts").value,a=+$("ta").value,O=outs(s,a),X=function(i){return 80+160*i},Y=140,h="",by={};
+ O.forEach(function(o){by[o.nx]=(by[o.nx]||0)+o.p});
+ Object.keys(by).forEach(function(k){k=+k;var x1=X(s),x2=X(k),p=by[k],w=1+p*7;
+  if(k===s){h+='<path d="M'+(x1-14)+' '+(Y-22)+' C'+(x1-50)+' '+(Y-95)+' '+(x1+50)+' '+(Y-95)+' '+(x1+14)+' '+(Y-22)+'" fill="none" stroke="var(--ac)" stroke-width="'+w+'"/><text x="'+x1+'" y="'+(Y-76)+'" text-anchor="middle">'+f(p,1)+'</text>'}
+  else{var mx=(x1+x2)/2,dy=Math.abs(x2-x1)/2;h+='<path d="M'+x1+' '+(Y-24)+' Q'+mx+' '+(Y-24-dy*1.2)+' '+x2+' '+(Y-24)+'" fill="none" stroke="var(--ac)" stroke-width="'+w+'"/><text x="'+mx+'" y="'+(Y-24-dy*0.6-4)+'" text-anchor="middle">'+f(p,1)+'</text>'}});
+ S4.forEach(function(i){var c=i===s;h+='<circle cx="'+X(i)+'" cy="'+Y+'" r="24" fill="'+(c?'var(--wo)':'var(--sf)')+'" stroke="var(--ink)" stroke-width="'+(c?3:1.5)+'"/><text x="'+X(i)+'" y="'+(Y+4)+'" text-anchor="middle" style="font-weight:700;fill:'+(c?'#111':'var(--ink)')+'">s='+i+'</text>'});
+ $("dg").innerHTML=h;
+ var t='<table><tr><th>d</th><th>P(d)</th><th>sold</th><th>r</th><th>s′</th></tr>';
+ O.forEach(function(o){t+='<tr><td>'+o.d+'</td><td class="n">'+f(o.p,1)+'</td><td>'+o.sold+'</td><td class="n '+(o.r<0?'neg':'')+'">'+f(o.r,1)+'</td><td>'+o.nx+'</td></tr>'});
+ $("tt").innerHTML=t+'</table>'}
+function bellman(){
+ var s=+$("bs").value,ba=MDP(s),h='';
+ acts(s).forEach(function(a){
+  h+='<div>q('+s+','+a+') = '+outs(s,a).map(function(o){return f(o.p,1)+'·('+f(o.r,1)+'+'+GM+'·'+f(V[o.nx])+')'}).join(' + ')+' = <b class="'+(a===ba?'win':'')+'">'+f(Q(s,a,V))+'</b>'+(a===ba?' ✓':'')+'</div>'});
+ h+='<div style="margin-top:6px">v*('+s+') = <b class="win">'+f(V[s])+'</b>, best action: order '+ba+'</div>';
+ $("bb").innerHTML=h;
+ var t='<table><tr><th>Policy</th>'+S4.map(function(s){return'<th>v(s='+s+')</th>'}).join('')+'<th>a(s=0..3)</th></tr>',rows=[["With MDP (optimal)","mdp",MDP],[RULES.myopic.n,"myopic",RULES.myopic.f],[RULES.empty.n,"empty",RULES.empty.f],[RULES.tuned.n,"tuned",RULES.tuned.f]];
+ rows.forEach(function(r){t+='<tr><td>'+r[0]+'</td>'+VP[r[1]].map(function(v){return'<td class="n">'+f(v,1)+'</td>'}).join('')+'<td>'+S4.map(r[2]).join(', ')+'</td></tr>'});
+ $("vt").innerHTML=t+'</table>'}
+// simulation
+function dem(){var u=Math.random(),c=0;for(var d=0;d<3;d++){c+=PD[d];if(u<c)return d}return 2}
+function ag(){return{s:1,cum:[0],ev:"Start: 1 unit",lost:0}}
+function move(g,a,d){var s1=g.s+a,sold=Math.min(d,s1),nx=s1-sold,r=5*sold-2*a-0.5*nx-(d-sold);
+ g.ev="s="+g.s+", order "+a+", demand "+d+", sold "+sold+", reward "+f(r,1);g.lost+=d-sold;g.cum.push(g.cum[g.cum.length-1]+r);g.s=nx}
+var W,M,D,t;
+function reset(){W=ag();M=ag();D=[];for(var i=0;i<DAYS;i++)D.push(dem());t=0;draw()}
+function step(){if(t>=DAYS)return;move(W,RULES[$("bl").value].f(W.s),D[t]);move(M,MDP(M.s),D[t]);t++;draw()}
+function shelf(id,g){var h="";for(var i=0;i<CAP;i++)h+='<div class="slot'+(i<g.s?' on':'')+'">'+(i<g.s?'■':'')+'</div>';$(id).innerHTML=h}
+function draw(){shelf("sh0",W);shelf("sh1",M);$("ev0").textContent=W.ev;$("ev1").textContent=M.ev;
+ $("p0").textContent=f(W.cum[W.cum.length-1],1);$("p1").textContent=f(M.cum[M.cum.length-1],1);
+ var X=function(i){return 50+i*80},lo=-10,hi=60,Y=function(v){return 190-(v-lo)/(hi-lo)*160},h="";
+ [0,20,40,60].forEach(function(v){h+='<line x1="50" x2="610" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="var(--ln)"/><text x="44" y="'+(Y(v)+4)+'" text-anchor="end">'+v+'</text>'});
+ for(var i=0;i<=DAYS;i++)h+='<text x="'+X(i)+'" y="210" text-anchor="middle">'+i+'</text>';
+ [[W,"var(--wo)"],[M,"var(--ac)"]].forEach(function(p){h+='<polyline points="'+p[0].cum.map(function(v,i){return X(i)+","+Y(v)}).join(" ")+'" fill="none" stroke="'+p[1]+'" stroke-width="3"/>';p[0].cum.forEach(function(v,i){h+='<circle cx="'+X(i)+'" cy="'+Y(v)+'" r="3.5" fill="'+p[1]+'"/>'})});
+ h+='<text x="60" y="16" style="fill:var(--wo);font-weight:700">Without MDP</text><text x="170" y="16" style="fill:var(--ac);font-weight:700">With MDP</text><text x="330" y="16" style="fill:var(--mut)">cumulative profit by day</text>';
+ $("ch").innerHTML=h}
+$("st").onclick=step;$("wk").onclick=function(){while(t<DAYS)step()};$("nw").onclick=reset;$("bl").onchange=reset;
+$("mc").onclick=function(){var N=2000,rule=RULES[$("bl").value].f,a=0,b=0,la=0,lb=0,w=0;
+ for(var n=0;n<N;n++){var x=ag(),y=ag();for(var k=0;k<DAYS;k++){var d=dem();move(x,rule(x.s),d);move(y,MDP(y.s),d)}a+=x.cum[DAYS];b+=y.cum[DAYS];la+=x.lost;lb+=y.lost;if(y.cum[DAYS]>x.cum[DAYS]+1e-9)w++}
+ $("mt").innerHTML='<table><tr><th>Mean per week, '+N+' weeks</th><th>Profit</th><th>Lost sales</th></tr><tr><td>Without MDP</td><td class="n">'+f(a/N,1)+'</td><td class="n">'+f(la/N)+'</td></tr><tr><td>With MDP</td><td class="n win">'+f(b/N,1)+'</td><td class="n">'+f(lb/N)+'</td></tr></table>MDP strictly better in '+f(w/N*100,0)+'% of weeks.'};
+$("ts").onchange=function(){fillA();diagram()};$("ta").onchange=diagram;$("bs").onchange=bellman;
+fillA();$("ts").value="1";fillA();$("ta").value="1";diagram();bellman();reset();
+})();
+</script></main></body></html>
